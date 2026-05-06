@@ -34,17 +34,16 @@
       border: 2.5px dashed #b0c4d8;
       border-radius: 14px;
       background: #fff;
-      padding: 48px 24px;
+      padding: 52px 24px;
       text-align: center;
       cursor: pointer;
       transition: border-color .2s, background .2s;
-      position: relative;
     }
-    .drop-zone.over  { border-color: #1a3a5c; background: #eef4fb; }
-    .drop-zone.erro  { border-color: #f44336; background: #fdecea; }
-    .drop-zone.pronto{ border-color: #4caf50; background: #f1fdf3; cursor: default; }
+    .drop-zone.over   { border-color: #1a3a5c; background: #eef4fb; }
+    .drop-zone.erro   { border-color: #f44336; background: #fdecea; cursor: default; }
+    .drop-zone.pronto { border-color: #4caf50; background: #f1fdf3; cursor: default; }
 
-    .drop-icon { font-size: 2.8rem; margin-bottom: 12px; }
+    .drop-icon  { font-size: 2.8rem; margin-bottom: 12px; }
     .drop-title { font-size: 1.05rem; font-weight: 600; color: #1a3a5c; margin-bottom: 6px; }
     .drop-sub   { font-size: .85rem; color: #888; }
 
@@ -52,8 +51,8 @@
 
     .btn-selecionar {
       display: inline-block;
-      margin-top: 16px;
-      padding: 10px 24px;
+      margin-top: 18px;
+      padding: 10px 26px;
       background: #1a3a5c;
       color: #fff;
       border: none;
@@ -63,11 +62,11 @@
       cursor: pointer;
       transition: background .2s;
     }
-    .btn-selecionar:hover { background: #245080; }
+    .btn-selecionar:hover:not(:disabled) { background: #245080; }
+    .btn-selecionar:disabled { opacity: .5; cursor: not-allowed; }
 
-    /* progresso */
     .barra-wrap {
-      margin-top: 18px;
+      margin-top: 20px;
       background: #e0e0e0;
       border-radius: 6px;
       height: 8px;
@@ -78,26 +77,21 @@
       height: 100%;
       background: #1a3a5c;
       width: 0%;
-      transition: width .3s;
+      transition: width .25s;
       border-radius: 6px;
     }
     .barra-wrap.ativo { display: block; }
     .barra-wrap.indeterminado .barra-prog {
-      width: 40%;
-      animation: slide 1.2s infinite ease-in-out;
+      width: 35%;
+      animation: slide 1.1s infinite ease-in-out;
     }
     @keyframes slide {
-      0%   { margin-left: 0%;   }
-      50%  { margin-left: 60%;  }
-      100% { margin-left: 0%;   }
+      0%   { margin-left: 0%; }
+      50%  { margin-left: 65%; }
+      100% { margin-left: 0%; }
     }
 
-    #msg-upload {
-      margin-top: 10px;
-      font-size: .85rem;
-      color: #555;
-      min-height: 18px;
-    }
+    #msg-upload { margin-top: 10px; font-size: .85rem; color: #666; min-height: 18px; }
     #msg-upload.erro { color: #c62828; }
     #msg-upload.ok   { color: #2e7d32; font-weight: 600; }
 
@@ -195,11 +189,7 @@
 
     .highlight { background: #fff176; border-radius: 2px; padding: 0 2px; }
 
-    .nenhum {
-      text-align: center;
-      padding: 48px 0;
-      color: #bbb;
-    }
+    .nenhum { text-align: center; padding: 48px 0; color: #bbb; }
     .nenhum .icone { font-size: 2.5rem; margin-bottom: 8px; }
 
     footer { text-align: center; padding: 28px; font-size: .78rem; color: #bbb; }
@@ -213,8 +203,6 @@
 </header>
 
 <main>
-
-  <!-- Upload -->
   <div id="secao-upload">
     <div class="drop-zone" id="drop-zone">
       <div class="drop-icon">📂</div>
@@ -229,7 +217,6 @@
     </div>
   </div>
 
-  <!-- Busca (oculta até upload) -->
   <div id="secao-busca">
     <div class="search-box">
       <label for="campo-busca">Buscar por nome do titular, marca ou procurador</label>
@@ -241,7 +228,6 @@
     </div>
     <div id="resultados"></div>
   </div>
-
 </main>
 
 <footer>Revista de Propriedade Industrial – INPI</footer>
@@ -252,7 +238,7 @@
   const btnSel       = document.getElementById('btn-selecionar');
   const barraWrap    = document.getElementById('barra-wrap');
   const barraProg    = document.getElementById('barra-prog');
-  const msgUpload    = document.getElementById('msg-upload');
+  const msgUploadEl  = document.getElementById('msg-upload');
   const secaoBusca   = document.getElementById('secao-busca');
   const campoBusca   = document.getElementById('campo-busca');
   const btnBuscar    = document.getElementById('btn-buscar');
@@ -260,103 +246,157 @@
   const resumoEl     = document.getElementById('resumo');
   const revistaInfo  = document.getElementById('revista-info');
 
+  let processos   = [];
+  let revistaMeta = {};
+
   // ── helpers ──────────────────────────────────────────────────────────────
   function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
-
   function highlight(texto, termo) {
     if (!termo) return escHtml(texto);
     const re = new RegExp(`(${termo.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
     return escHtml(texto).replace(re, '<span class="highlight">$1</span>');
   }
-
   function statusClass(s) {
     const sl = (s || '').toLowerCase();
     if (sl.includes('indeferida')) return 'tag-status-indeferida';
     if (sl.includes('deferida'))   return 'tag-status-deferida';
     return 'tag-status-pendente';
   }
+  function setMsg(texto, tipo) {
+    msgUploadEl.textContent = texto;
+    msgUploadEl.className   = tipo || '';
+  }
 
-  // ── Upload ────────────────────────────────────────────────────────────────
+  // ── Upload / parse ────────────────────────────────────────────────────────
   btnSel.addEventListener('click', () => inputArquivo.click());
   inputArquivo.addEventListener('change', () => {
-    if (inputArquivo.files[0]) enviarArquivo(inputArquivo.files[0]);
+    if (inputArquivo.files[0]) lerArquivo(inputArquivo.files[0]);
   });
 
-  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('over'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+  dropZone.addEventListener('dragover',  (e) => { e.preventDefault(); dropZone.classList.add('over'); });
+  dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('over'));
   dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropZone.classList.remove('over');
-    const file = e.dataTransfer.files[0];
-    if (file) enviarArquivo(file);
+    if (e.dataTransfer.files[0]) lerArquivo(e.dataTransfer.files[0]);
   });
 
-  function setMsgUpload(texto, tipo) {
-    msgUpload.textContent = texto;
-    msgUpload.className   = tipo || '';
-  }
-
-  function enviarArquivo(file) {
+  function lerArquivo(file) {
     if (!file.name.toLowerCase().endsWith('.xml')) {
       dropZone.classList.add('erro');
-      setMsgUpload('O arquivo precisa ser um .xml', 'erro');
+      setMsg('O arquivo precisa ser um .xml', 'erro');
       return;
     }
 
     dropZone.classList.remove('erro', 'pronto', 'over');
     btnSel.disabled = true;
     barraWrap.classList.add('ativo', 'indeterminado');
-    setMsgUpload(`Enviando "${file.name}"…`);
+    setMsg(`Lendo "${file.name}"…`);
 
-    const formData = new FormData();
-    formData.append('arquivo', file);
+    const reader = new FileReader();
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload');
-
-    xhr.upload.addEventListener('progress', (e) => {
+    reader.onprogress = (e) => {
       if (e.lengthComputable) {
         barraWrap.classList.remove('indeterminado');
-        const pct = Math.round((e.loaded / e.total) * 80);
-        barraProg.style.width = pct + '%';
-        setMsgUpload(`Enviando… ${pct}%`);
+        barraProg.style.width = Math.round((e.loaded / e.total) * 40) + '%';
       }
-    });
+    };
 
-    xhr.addEventListener('load', () => {
-      if (xhr.status === 200) {
-        const d = JSON.parse(xhr.responseText);
-        barraProg.style.width = '100%';
-        barraWrap.classList.remove('indeterminado');
-        setMsgUpload(`Pronto! ${d.total.toLocaleString('pt-BR')} processos carregados.`, 'ok');
-        dropZone.classList.add('pronto');
-        revistaInfo.textContent = d.revista.numero
-          ? `Revista nº ${d.revista.numero} — ${d.revista.data}`
-          : '';
-        setTimeout(() => {
-          document.getElementById('secao-upload').style.display = 'none';
-          secaoBusca.classList.add('visivel');
-          campoBusca.focus();
-        }, 900);
-      } else {
-        const d = JSON.parse(xhr.responseText);
-        dropZone.classList.add('erro');
-        setMsgUpload(d.erro || 'Erro ao processar o arquivo.', 'erro');
-        barraWrap.classList.remove('ativo');
-        btnSel.disabled = false;
-      }
-    });
+    reader.onload = (e) => {
+      setMsg('Processando XML…');
+      barraProg.style.width = '45%';
+      // yield to browser so the UI updates before the heavy parse
+      setTimeout(() => parsearXML(e.target.result), 30);
+    };
 
-    xhr.addEventListener('error', () => {
+    reader.onerror = () => {
       dropZone.classList.add('erro');
-      setMsgUpload('Falha na conexão com o servidor.', 'erro');
+      setMsg('Erro ao ler o arquivo.', 'erro');
       barraWrap.classList.remove('ativo');
       btnSel.disabled = false;
-    });
+    };
 
-    xhr.send(formData);
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function parsearXML(xmlText) {
+    try {
+      const parser = new DOMParser();
+      const doc    = parser.parseFromString(xmlText, 'application/xml');
+
+      if (doc.querySelector('parsererror')) throw new Error('XML mal formado');
+
+      const revistaEl = doc.querySelector('revista');
+      if (!revistaEl) throw new Error('Elemento <revista> não encontrado');
+
+      revistaMeta = {
+        numero: revistaEl.getAttribute('numero') || '',
+        data:   revistaEl.getAttribute('data')   || '',
+      };
+
+      barraProg.style.width = '70%';
+
+      processos = Array.from(doc.querySelectorAll('processo')).map(p => {
+        const despachos = Array.from(p.querySelectorAll('despacho')).map(d => ({
+          codigo: d.getAttribute('codigo') || '',
+          nome:   d.getAttribute('nome')   || '',
+        }));
+
+        const titulares = Array.from(p.querySelectorAll('titular')).map(t => ({
+          nome: t.getAttribute('nome-razao-social') || '',
+          pais: t.getAttribute('pais') || '',
+          uf:   t.getAttribute('uf')   || '',
+        }));
+
+        const marcaEl = p.querySelector('marca');
+        const marca = marcaEl ? {
+          nome:         marcaEl.querySelector('nome')?.textContent || '',
+          apresentacao: marcaEl.getAttribute('apresentacao') || '',
+          natureza:     marcaEl.getAttribute('natureza')     || '',
+        } : null;
+
+        const classesNice = Array.from(p.querySelectorAll('classe-nice')).map(cn => ({
+          codigo:        cn.getAttribute('codigo') || '',
+          especificacao: cn.querySelector('especificacao')?.textContent.trim() || '',
+          status:        cn.querySelector('status')?.textContent || '',
+        }));
+
+        return {
+          numero:        p.getAttribute('numero')          || '',
+          dataDeposito:  p.getAttribute('data-deposito')   || '',
+          dataConcessao: p.getAttribute('data-concessao')  || '',
+          dataVigencia:  p.getAttribute('data-vigencia')   || '',
+          despachos,
+          titulares,
+          marca,
+          classesNice,
+          procurador: p.querySelector('procurador')?.textContent || '',
+        };
+      });
+
+      barraProg.style.width = '100%';
+      barraWrap.classList.remove('indeterminado');
+      setMsg(`Pronto! ${processos.length.toLocaleString('pt-BR')} processos carregados.`, 'ok');
+      dropZone.classList.add('pronto');
+
+      revistaInfo.textContent = revistaMeta.numero
+        ? `Revista nº ${revistaMeta.numero} — ${revistaMeta.data}`
+        : '';
+
+      setTimeout(() => {
+        document.getElementById('secao-upload').style.display = 'none';
+        secaoBusca.classList.add('visivel');
+        campoBusca.focus();
+      }, 800);
+
+    } catch (err) {
+      dropZone.classList.add('erro');
+      setMsg(`Erro: ${err.message}`, 'erro');
+      barraWrap.classList.remove('ativo');
+      btnSel.disabled = false;
+    }
   }
 
   // ── Busca ─────────────────────────────────────────────────────────────────
@@ -396,31 +436,31 @@
       </div>`;
   }
 
-  async function buscar() {
+  function buscar() {
     const termo = campoBusca.value.trim();
     if (!termo) { divRes.innerHTML = ''; resumoEl.textContent = ''; return; }
 
-    btnBuscar.disabled  = true;
+    btnBuscar.disabled    = true;
     btnBuscar.textContent = 'Buscando…';
     resumoEl.textContent  = '';
 
-    try {
-      const r = await fetch(`/buscar?q=${encodeURIComponent(termo)}`);
-      const d = await r.json();
+    const tl = termo.toLowerCase();
+    const resultados = processos.filter(p =>
+      p.titulares.some(t => t.nome.toLowerCase().includes(tl))
+      || (p.marca && p.marca.nome.toLowerCase().includes(tl))
+      || p.procurador.toLowerCase().includes(tl)
+    );
 
-      resumoEl.textContent = d.total === 0
-        ? `Nenhum resultado para "${termo}"`
-        : `${d.total.toLocaleString('pt-BR')} resultado${d.total !== 1 ? 's' : ''} para "${termo}"`;
+    resumoEl.textContent = resultados.length === 0
+      ? `Nenhum resultado para "${termo}"`
+      : `${resultados.length.toLocaleString('pt-BR')} resultado${resultados.length !== 1 ? 's' : ''} para "${termo}"`;
 
-      divRes.innerHTML = d.total === 0
-        ? `<div class="nenhum"><div class="icone">🔍</div><div>Nenhum processo com o nome <strong>"${escHtml(termo)}"</strong>.</div></div>`
-        : d.resultados.map(p => renderizarCard(p, termo)).join('');
-    } catch {
-      resumoEl.textContent = 'Erro ao realizar a busca.';
-    } finally {
-      btnBuscar.disabled    = false;
-      btnBuscar.textContent = 'Buscar';
-    }
+    divRes.innerHTML = resultados.length === 0
+      ? `<div class="nenhum"><div class="icone">🔍</div><div>Nenhum processo com o nome <strong>"${escHtml(termo)}"</strong>.</div></div>`
+      : resultados.map(p => renderizarCard(p, termo)).join('');
+
+    btnBuscar.disabled    = false;
+    btnBuscar.textContent = 'Buscar';
   }
 
   btnBuscar.addEventListener('click', buscar);
