@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buscador de Revista – INPI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a3a5c;
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    header h1 { font-size: 1.3rem; font-weight: 600; }
+    #revista-info { font-size: .82rem; opacity: .7; }
+
+    main { max-width: 960px; margin: 36px auto; padding: 0 16px; }
+
+    /* ── Upload ── */
+    #secao-upload { margin-bottom: 28px; }
+
+    .drop-zone {
+      border: 2.5px dashed #b0c4d8;
+      border-radius: 14px;
+      background: #fff;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .drop-zone.over  { border-color: #1a3a5c; background: #eef4fb; }
+    .drop-zone.erro  { border-color: #f44336; background: #fdecea; }
+    .drop-zone.pronto{ border-color: #4caf50; background: #f1fdf3; cursor: default; }
+
+    .drop-icon { font-size: 2.8rem; margin-bottom: 12px; }
+    .drop-title { font-size: 1.05rem; font-weight: 600; color: #1a3a5c; margin-bottom: 6px; }
+    .drop-sub   { font-size: .85rem; color: #888; }
+
+    #input-arquivo { display: none; }
+
+    .btn-selecionar {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 10px 24px;
+      background: #1a3a5c;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-selecionar:hover { background: #245080; }
+
+    /* progresso */
+    .barra-wrap {
+      margin-top: 18px;
+      background: #e0e0e0;
+      border-radius: 6px;
+      height: 8px;
+      overflow: hidden;
+      display: none;
+    }
+    .barra-prog {
+      height: 100%;
+      background: #1a3a5c;
+      width: 0%;
+      transition: width .3s;
+      border-radius: 6px;
+    }
+    .barra-wrap.ativo { display: block; }
+    .barra-wrap.indeterminado .barra-prog {
+      width: 40%;
+      animation: slide 1.2s infinite ease-in-out;
+    }
+    @keyframes slide {
+      0%   { margin-left: 0%;   }
+      50%  { margin-left: 60%;  }
+      100% { margin-left: 0%;   }
+    }
+
+    #msg-upload {
+      margin-top: 10px;
+      font-size: .85rem;
+      color: #555;
+      min-height: 18px;
+    }
+    #msg-upload.erro { color: #c62828; }
+    #msg-upload.ok   { color: #2e7d32; font-weight: 600; }
+
+    /* ── Busca ── */
+    #secao-busca { display: none; }
+    #secao-busca.visivel { display: block; }
+
+    .search-box {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.1);
+      padding: 22px 24px;
+      margin-bottom: 22px;
+    }
+    .search-box label {
+      display: block;
+      font-size: .78rem;
+      font-weight: 700;
+      color: #888;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .input-row { display: flex; gap: 10px; }
+
+    #campo-busca {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    #campo-busca:focus { border-color: #1a3a5c; }
+
+    #btn-buscar {
+      padding: 12px 28px;
+      background: #1a3a5c;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+      white-space: nowrap;
+    }
+    #btn-buscar:hover:not(:disabled) { background: #245080; }
+    #btn-buscar:disabled { opacity: .5; cursor: not-allowed; }
+
+    #resumo { font-size: .88rem; color: #777; margin-top: 10px; min-height: 18px; }
+
+    /* ── Cards ── */
+    #resultados { display: flex; flex-direction: column; gap: 14px; }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      padding: 20px 24px;
+      border-left: 5px solid #1a3a5c;
+      transition: box-shadow .2s;
+    }
+    .card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.14); }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .card-numero  { font-size: .72rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: .08em; }
+    .card-titular { font-size: 1.05rem; font-weight: 700; color: #1a3a5c; margin-top: 2px; }
+    .card-marca   { font-size: .92rem; color: #555; margin-top: 2px; font-style: italic; }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag  { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .73rem; font-weight: 600; }
+    .tag-despacho          { background: #e3f2fd; color: #1565c0; }
+    .tag-nice              { background: #f3e5f5; color: #6a1b9a; }
+    .tag-status-deferida   { background: #e8f5e9; color: #2e7d32; }
+    .tag-status-pendente   { background: #fff8e1; color: #f57f17; }
+    .tag-status-indeferida { background: #fdecea; color: #c62828; }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 8px 16px;
+      margin-bottom: 10px;
+    }
+    .campo-label { color: #bbb; font-weight: 700; text-transform: uppercase; font-size: .68rem; letter-spacing: .05em; }
+    .campo-valor { color: #333; font-size: .82rem; margin-top: 1px; }
+
+    .highlight { background: #fff176; border-radius: 2px; padding: 0 2px; }
+
+    .nenhum {
+      text-align: center;
+      padding: 48px 0;
+      color: #bbb;
+    }
+    .nenhum .icone { font-size: 2.5rem; margin-bottom: 8px; }
+
+    footer { text-align: center; padding: 28px; font-size: .78rem; color: #bbb; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Buscador de Revista de Marcas – INPI</h1>
+  <span id="revista-info"></span>
+</header>
+
+<main>
+
+  <!-- Upload -->
+  <div id="secao-upload">
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-icon">📂</div>
+      <div class="drop-title">Selecione ou arraste o arquivo XML da revista</div>
+      <div class="drop-sub">Arquivos de Revista de Propriedade Industrial (.xml)</div>
+      <button class="btn-selecionar" id="btn-selecionar">Escolher arquivo</button>
+      <input type="file" id="input-arquivo" accept=".xml" />
+      <div class="barra-wrap" id="barra-wrap">
+        <div class="barra-prog" id="barra-prog"></div>
+      </div>
+      <div id="msg-upload"></div>
+    </div>
+  </div>
+
+  <!-- Busca (oculta até upload) -->
+  <div id="secao-busca">
+    <div class="search-box">
+      <label for="campo-busca">Buscar por nome do titular, marca ou procurador</label>
+      <div class="input-row">
+        <input id="campo-busca" type="text" placeholder='Ex.: "Silva", "Ltda", "Maria"...' autocomplete="off" />
+        <button id="btn-buscar">Buscar</button>
+      </div>
+      <div id="resumo"></div>
+    </div>
+    <div id="resultados"></div>
+  </div>
+
+</main>
+
+<footer>Revista de Propriedade Industrial – INPI</footer>
+
+<script>
+  const dropZone     = document.getElementById('drop-zone');
+  const inputArquivo = document.getElementById('input-arquivo');
+  const btnSel       = document.getElementById('btn-selecionar');
+  const barraWrap    = document.getElementById('barra-wrap');
+  const barraProg    = document.getElementById('barra-prog');
+  const msgUpload    = document.getElementById('msg-upload');
+  const secaoBusca   = document.getElementById('secao-busca');
+  const campoBusca   = document.getElementById('campo-busca');
+  const btnBuscar    = document.getElementById('btn-buscar');
+  const divRes       = document.getElementById('resultados');
+  const resumoEl     = document.getElementById('resumo');
+  const revistaInfo  = document.getElementById('revista-info');
+
+  // ── helpers ──────────────────────────────────────────────────────────────
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function highlight(texto, termo) {
+    if (!termo) return escHtml(texto);
+    const re = new RegExp(`(${termo.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+    return escHtml(texto).replace(re, '<span class="highlight">$1</span>');
+  }
+
+  function statusClass(s) {
+    const sl = (s || '').toLowerCase();
+    if (sl.includes('indeferida')) return 'tag-status-indeferida';
+    if (sl.includes('deferida'))   return 'tag-status-deferida';
+    return 'tag-status-pendente';
+  }
+
+  // ── Upload ────────────────────────────────────────────────────────────────
+  btnSel.addEventListener('click', () => inputArquivo.click());
+  inputArquivo.addEventListener('change', () => {
+    if (inputArquivo.files[0]) enviarArquivo(inputArquivo.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('over');
+    const file = e.dataTransfer.files[0];
+    if (file) enviarArquivo(file);
+  });
+
+  function setMsgUpload(texto, tipo) {
+    msgUpload.textContent = texto;
+    msgUpload.className   = tipo || '';
+  }
+
+  function enviarArquivo(file) {
+    if (!file.name.toLowerCase().endsWith('.xml')) {
+      dropZone.classList.add('erro');
+      setMsgUpload('O arquivo precisa ser um .xml', 'erro');
+      return;
+    }
+
+    dropZone.classList.remove('erro', 'pronto', 'over');
+    btnSel.disabled = true;
+    barraWrap.classList.add('ativo', 'indeterminado');
+    setMsgUpload(`Enviando "${file.name}"…`);
+
+    const formData = new FormData();
+    formData.append('arquivo', file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload');
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        barraWrap.classList.remove('indeterminado');
+        const pct = Math.round((e.loaded / e.total) * 80);
+        barraProg.style.width = pct + '%';
+        setMsgUpload(`Enviando… ${pct}%`);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        const d = JSON.parse(xhr.responseText);
+        barraProg.style.width = '100%';
+        barraWrap.classList.remove('indeterminado');
+        setMsgUpload(`Pronto! ${d.total.toLocaleString('pt-BR')} processos carregados.`, 'ok');
+        dropZone.classList.add('pronto');
+        revistaInfo.textContent = d.revista.numero
+          ? `Revista nº ${d.revista.numero} — ${d.revista.data}`
+          : '';
+        setTimeout(() => {
+          document.getElementById('secao-upload').style.display = 'none';
+          secaoBusca.classList.add('visivel');
+          campoBusca.focus();
+        }, 900);
+      } else {
+        const d = JSON.parse(xhr.responseText);
+        dropZone.classList.add('erro');
+        setMsgUpload(d.erro || 'Erro ao processar o arquivo.', 'erro');
+        barraWrap.classList.remove('ativo');
+        btnSel.disabled = false;
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      dropZone.classList.add('erro');
+      setMsgUpload('Falha na conexão com o servidor.', 'erro');
+      barraWrap.classList.remove('ativo');
+      btnSel.disabled = false;
+    });
+
+    xhr.send(formData);
+  }
+
+  // ── Busca ─────────────────────────────────────────────────────────────────
+  function renderizarCard(p, termo) {
+    const titularNomes = p.titulares.map(t => highlight(t.nome, termo)).join(', ') || '—';
+    const nomeMarca    = p.marca && p.marca.nome ? highlight(p.marca.nome, termo) : null;
+    const procurador   = p.procurador ? highlight(p.procurador, termo) : null;
+
+    const datas = [
+      p.dataDeposito  && `<div><div class="campo-label">Depósito</div><div class="campo-valor">${escHtml(p.dataDeposito)}</div></div>`,
+      p.dataConcessao && `<div><div class="campo-label">Concessão</div><div class="campo-valor">${escHtml(p.dataConcessao)}</div></div>`,
+      p.dataVigencia  && `<div><div class="campo-label">Vigência</div><div class="campo-valor">${escHtml(p.dataVigencia)}</div></div>`,
+    ].filter(Boolean);
+
+    const despachos = p.despachos.map(d =>
+      `<span class="tag tag-despacho" title="${escHtml(d.codigo)}">${escHtml(d.nome)}</span>`
+    ).join('');
+
+    const classes = p.classesNice.map(cn =>
+      `<span class="tag tag-nice">Classe ${escHtml(cn.codigo)}</span>
+       <span class="tag ${statusClass(cn.status)}">${escHtml(cn.status)}</span>`
+    ).join('');
+
+    return `
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-numero">Processo nº ${escHtml(p.numero)}</div>
+            <div class="card-titular">${titularNomes}</div>
+            ${nomeMarca ? `<div class="card-marca">Marca: ${nomeMarca}${p.marca.apresentacao ? ` (${escHtml(p.marca.apresentacao)})` : ''}</div>` : ''}
+          </div>
+          <div class="tags">${despachos}</div>
+        </div>
+        ${datas.length ? `<div class="card-grid">${datas.join('')}</div>` : ''}
+        ${procurador ? `<div style="margin-bottom:10px"><div class="campo-label">Procurador</div><div class="campo-valor">${procurador}</div></div>` : ''}
+        ${classes ? `<div class="tags" style="margin-top:4px">${classes}</div>` : ''}
+      </div>`;
+  }
+
+  async function buscar() {
+    const termo = campoBusca.value.trim();
+    if (!termo) { divRes.innerHTML = ''; resumoEl.textContent = ''; return; }
+
+    btnBuscar.disabled  = true;
+    btnBuscar.textContent = 'Buscando…';
+    resumoEl.textContent  = '';
+
+    try {
+      const r = await fetch(`/buscar?q=${encodeURIComponent(termo)}`);
+      const d = await r.json();
+
+      resumoEl.textContent = d.total === 0
+        ? `Nenhum resultado para "${termo}"`
+        : `${d.total.toLocaleString('pt-BR')} resultado${d.total !== 1 ? 's' : ''} para "${termo}"`;
+
+      divRes.innerHTML = d.total === 0
+        ? `<div class="nenhum"><div class="icone">🔍</div><div>Nenhum processo com o nome <strong>"${escHtml(termo)}"</strong>.</div></div>`
+        : d.resultados.map(p => renderizarCard(p, termo)).join('');
+    } catch {
+      resumoEl.textContent = 'Erro ao realizar a busca.';
+    } finally {
+      btnBuscar.disabled    = false;
+      btnBuscar.textContent = 'Buscar';
+    }
+  }
+
+  btnBuscar.addEventListener('click', buscar);
+  campoBusca.addEventListener('keydown', (e) => { if (e.key === 'Enter') buscar(); });
+</script>
+</body>
+</html>
